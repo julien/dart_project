@@ -1,4 +1,4 @@
-// library dart_project;
+library dart_project;
 
 import 'dart:io';
 
@@ -74,7 +74,7 @@ dependencies:
 ''';
 
 void abort([String message = 'bye bye!', int statusCode = 1]) {
-  print('\x1b[32m$message\x1b[0m');
+  print(message);
   exit(statusCode);
 }
 
@@ -102,9 +102,11 @@ Future<dynamic> createFile(String name, String contents) {
   Future<File> createFile = file.create();
   createFile.then((File value) {
     if (value != null) {
-      // this fails ... why?
-      // Future<File> writeFile = file.writeAsString(contents, Encoding.UTF_8, FileMode.WRITE);
-      Future<File> writeFile = file.writeAsString(contents, FileMode.WRITE);
+      // this fails on OSX... why?
+      Future<File> writeFile = file.writeAsString(contents, encoding:Encoding.UTF_8, mode:FileMode.WRITE);
+
+      // this works on OSX but not on win...
+      // Future<File> writeFile = file.writeAsString(contents, FileMode.WRITE);
       writeFile.then((File value) {
         if (value != null) {
           completer.complete(value);
@@ -133,30 +135,22 @@ Future<dynamic> createDirectory(String path) {
 }
 
 void createProject(String projectPath) {
-   print('\x1b[32mcreating project "$projectName"\t${projectPath}\x1b[0m');
+   print('creating project "$projectName"\t${projectPath}');
 
    createDirectory(projectPath).then((dynamic value) {
      if (value is Directory) {
        Future<bool> fileFuture = createFile('${projectPath}/pubspec.yaml', TEMPLATE_PUBSPEC);
 
-       Future<bool> webFuture = prompt('\x1b[36mgenerate content for a base web app?\x1b[0m');
+       Future<bool> webFuture = prompt('generate content for a base web app?');
        webFuture.then((bool value) {
          if (value) {
            createDirectory('${projectPath}/web').then((Directory dir) {
              if (dir != null) {
                Future<bool> dartFile = createFile('${projectPath}/web/${projectName}.dart', TEMPLATE_DART_WEB);
-               dartFile.then((value) {
-                 if (value is File) {
-                   Future<bool> htmlFile = createFile('${projectPath}/web/${projectName}.html', TEMPLATE_HTML);
-                   htmlFile.then((value) {
-                     if (value is File) {
-                       Future<bool> cssFile  = createFile('${projectPath}/web/${projectName}.css', TEMPLATE_CSS);
-                       cssFile.then((value) {
-                         abort('project created\tbye bye!');
-                       });
-                     }
-                   });
-                 }
+               Future<bool> htmlFile = createFile('${projectPath}/web/${projectName}.html', TEMPLATE_HTML);
+               Future<bool> cssFile  = createFile('${projectPath}/web/${projectName}.css', TEMPLATE_CSS);
+               Futures.wait([dartFile, htmlFile, cssFile]).then((List<dynamic> values) {
+                 abort('project created\tbye bye!');
                });
              }
            });
@@ -178,13 +172,12 @@ void createProject(String projectPath) {
 }
 
 void initialize(Directory dir, String name) {
-  print('\x1b[32minitializing project:\t"${name}"\x1b[0m');
-  print('\x1b[32mproject path:\t${projectPath}\x1b[0m');
+  print('initializing project:\t"${name}"');
+  print('project path:\t${projectPath}');
 
   bool found;
   File existing;
   Future<bool> future;
-
 
   DirectoryLister lister = dir.list(recursive:true);
 
@@ -203,7 +196,7 @@ void initialize(Directory dir, String name) {
   };
   lister.onDone = (bool completed) {
     if (completed && found) {
-      future = prompt('\x1b[31m${projectPath} already exists, do you want to overwrite it?\x1b[0m');
+      future = prompt('${projectPath} already exists, do you want to overwrite it?');
       future.then((value) { !value ? abort() : createProject(projectPath); });
     } else {
       createProject(projectPath);
@@ -221,6 +214,6 @@ void main() {
     projectPath = new Path('${projectDir.path}/$projectName').toNativePath();
     initialize(projectDir, projectName);
   } else {
-    abort('\x1b[32musage: dart_project.dart PROJECT_NAME\x1b[0m');
+    abort('usage: dart_project.dart PROJECT_NAME');
   }
 }
