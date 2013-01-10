@@ -80,9 +80,7 @@ void abort([String message = 'bye bye!', int statusCode = 1]) {
 
 Future<bool> prompt(String message) {
   print('$message[y/n]');
-
   Completer completer = new Completer();
-
   StringInputStream stream = new StringInputStream(stdin);
   stream.onLine = () {
     String answer = stream.readLine().toLowerCase().trim();
@@ -99,38 +97,47 @@ Future<dynamic> createFile(String name, String contents) {
   Completer completer = new Completer();
   File file = new File(name);
 
-  Future<File> createFile = file.create();
-  createFile.then((File value) {
-    if (value != null) {
-      // this fails on OSX... why?
-      Future<File> writeFile = file.writeAsString(contents, encoding:Encoding.UTF_8, mode:FileMode.WRITE);
+  try {
+    Future<File> createFile = file.create();
+    createFile.then((File value) {
+      if (value != null) {
+        // this fails on OSX... why?
+        Future<File> writeFile = file.writeAsString(contents, encoding:Encoding.UTF_8, mode:FileMode.WRITE);
 
-      // this works on OSX but not on win...
-      // Future<File> writeFile = file.writeAsString(contents, FileMode.WRITE);
-      writeFile.then((File value) {
-        if (value != null) {
-          completer.complete(value);
-        } else {
-          completer.complete(false);
-        }
-      });
-    } else {
-      completer.complete(false);
-    }
-  });
+        // this works on OSX but not on win...
+        // Future<File> writeFile = file.writeAsString(contents, FileMode.WRITE);
+        writeFile.then((File value) {
+          if (value != null) {
+            completer.complete(value);
+          } else {
+            completer.complete(false);
+          }
+        });
+      } else {
+        completer.complete(false);
+      }
+    });
+  } on Exception catch (e) {
+    completer.completeException(e);
+  }
   return completer.future;
 }
 
 Future<dynamic> createDirectory(String path) {
   Completer completer = new Completer();
   Directory dir = new Directory(path);
-  dir.create().then((Directory dir) {
-    if (dir != null) {
-      completer.complete(dir);
-    } else {
-      completer.complete(false);
-    }
-  });
+  try {
+    Future<Directory> dirFuture = dir.create();
+    dirFuture.then((Directory dir) {
+      if (dir != null) {
+        completer.complete(dir);
+      } else {
+        completer.complete(false);
+      }
+    });
+  } on Exception catch (e) {
+    completer.completeException(e);
+  }
   return completer.future;
 }
 
@@ -143,7 +150,7 @@ void createProject(String projectPath) {
 
        Future<bool> webFuture = prompt('generate content for a base web app?');
        webFuture.then((bool value) {
-         if (value) {
+         if (value == true) {
            createDirectory('${projectPath}/web').then((Directory dir) {
              if (dir != null) {
                Future<bool> dartFile = createFile('${projectPath}/web/${projectName}.dart', TEMPLATE_DART_WEB);
@@ -154,7 +161,7 @@ void createProject(String projectPath) {
                });
              }
            });
-         } else {
+         } else if (value == false) {
           createDirectory('${projectPath}/bin').then((Directory dir) {
             if (dir != null) {
               Future<bool> dartFile = createFile('${projectPath}/bin/${projectName}.dart', TEMPLATE_DART_CMD);
@@ -172,7 +179,7 @@ void createProject(String projectPath) {
 }
 
 void initialize(Directory dir, String name) {
-  print('initializing project:\t"${name}"');
+  print('\ninitializing project:\t"${name}"');
   print('project path:\t${projectPath}');
 
   bool found;
@@ -181,7 +188,9 @@ void initialize(Directory dir, String name) {
 
   DirectoryLister lister = dir.list(recursive:true);
 
-  lister.onError = (e) => print(e);
+  lister.onError = (e) {
+    print('an error occured while listing the directory:\n $e');
+  };
   lister.onDir  = (String dir) {
     if (projectPath == dir) {
       existing = new File(dir);
