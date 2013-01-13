@@ -68,6 +68,7 @@ String TEMPLATE_PUBSPEC = '''
 name: ${projectName}
 
 dependencies:
+  browser: ">=0.0.1 <0.0.2"
 #  js: any
 #  unittest: any
 
