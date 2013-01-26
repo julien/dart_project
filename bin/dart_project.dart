@@ -1,6 +1,7 @@
 library dart_project;
 
 import 'dart:io';
+import 'dart:async';
 
 Directory projectDir;
 String projectPath;
@@ -30,7 +31,7 @@ String TEMPLATE_HTML = '''
   <body>
     <h1>${projectName}</h1>
     <script type="application/dart" src="${projectName}.dart"></script>
-    <script src="https://dart.googlecode.com/svn/branches/bleeding_edge/dart/client/dart.js"></script>
+    <script src="../packages/browser/dart.js"></script>
   </body>
 </html>
 ''';
@@ -119,7 +120,7 @@ Future<dynamic> createFile(String name, String contents) {
       }
     });
   } on Exception catch (e) {
-    completer.completeException(e);
+    completer.completeError(e);
   }
   return completer.future;
 }
@@ -137,7 +138,8 @@ Future<dynamic> createDirectory(String path) {
       }
     });
   } on Exception catch (e) {
-    completer.completeException(e);
+    completer.completeError(e);
+
   }
   return completer.future;
 }
@@ -157,9 +159,11 @@ void createProject(String projectPath) {
                Future<bool> dartFile = createFile('${projectPath}/web/${projectName}.dart', TEMPLATE_DART_WEB);
                Future<bool> htmlFile = createFile('${projectPath}/web/${projectName}.html', TEMPLATE_HTML);
                Future<bool> cssFile  = createFile('${projectPath}/web/${projectName}.css', TEMPLATE_CSS);
-               Futures.wait([dartFile, htmlFile, cssFile]).then((List<dynamic> values) {
+               Future.wait([dartFile, htmlFile, cssFile]).then((List<dynamic> values) {
                  abort('project created\tbye bye!');
                });
+
+
              }
            });
          } else if (value == false) {
